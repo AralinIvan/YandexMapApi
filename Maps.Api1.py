@@ -35,7 +35,6 @@ class MyWidget(QMainWindow):
         a = 'Вы ввели некорректные:'
         if self.lineEdit.text().count('.') > 1 or not self.lineEdit.text().replace('.', '').isdigit():
             a += '\nДолготу'
-            print(1)
         else:
             if float(self.lineEdit.text()) > 179 or float(self.lineEdit.text()) < -179:
                 a += '\nДолготу'
@@ -98,7 +97,6 @@ class MyWidget(QMainWindow):
 
     def SearchMap(self):
         global spn_, points
-        print(1)
         api_server = "http://geocode-maps.yandex.ru/1.x/"
         params = {
             "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
@@ -109,7 +107,6 @@ class MyWidget(QMainWindow):
         json = response.json()
         toponym = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
         points = [toponym.split()[0], toponym.split()[1]]
-        print(2)
         self.ShowMap(toponym.split()[1], toponym.split()[0], spn_, points)
 
 
@@ -133,7 +130,6 @@ class MyWidget(QMainWindow):
                 spnn[1] = str(90)
             else:
                 spnn[1] = str(float(spn_[1]) * 2)
-            print(spnn)
             self.ShowMap(lat, lon, spnn, points)
         elif event.key() == Qt.Key_PageUp:
             if float(spn_[0]) / 2 < 0.001:
@@ -144,7 +140,6 @@ class MyWidget(QMainWindow):
                 spnn[1] = str(0.0001)
             else:
                 spnn[1] = str(float(spn_[1]) / 2)
-            print(spnn)
             self.ShowMap(lat, lon, spnn, points)
 
 
