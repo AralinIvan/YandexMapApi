@@ -51,11 +51,9 @@ class MyWidget(QMainWindow):
             a2 = a2[1:]
         if a1.count('.') > 1 or not a1.replace('.', '').isdigit():
             a += '\nШироту'
-            print(1)
         else:
             if float(a1) > 88:
                 a += '\nШироту'
-                print(2)
         if a2.count('.') > 1 or not a2.replace('.', '').isdigit():
             a += '\nДолготу'
         else:
@@ -84,13 +82,14 @@ class MyWidget(QMainWindow):
         uic.loadUi('map.ui', self)
         self.ShowMap(Longitude, Latitude, spn, pts)
 
-    def ShowMap(self, Latitude, Longitude, spn, pts=['']):
-        global lon, lat, spn_, points
+    def ShowMap(self, Latitude, Longitude, spn, pts=[''], fulladdress=[""]):
+        global lon, lat, spn_, points, address
         api_server = "http://static-maps.yandex.ru/1.x/"
         lon = str(Longitude)
         lat = str(Latitude)
         spn_ = spn
         points = pts
+        address = fulladdress
         params = {
             "ll": ",".join([lon, lat]),
             "spn": ",".join(spn_),
@@ -99,21 +98,31 @@ class MyWidget(QMainWindow):
             "pt": ",".join(points)
         }
         response = requests.get(api_server, params=params)
-        print(response.status_code)
         self.map_file = "map.png"
         a = self.lineEdit.text()
+        b = self.checkBox.checkState()
         uic.loadUi('map.ui', self)
         self.lineEdit.setText(a)
+        self.checkBox.setChecked(b)
         with open(self.map_file, "wb") as file:
             file.write(response.content)
         self.pixmap = QPixmap(self.map_file)
         self.label.setPixmap(self.pixmap)
+        if self.checkBox.checkState():
+            self.label_2.setText(fulladdress[0] + fulladdress[1])
+        else:
+            self.label_2.setText(fulladdress[0])
         self.pushButton.clicked.connect(sys.exit)
         self.pushButton.setIcon(QtGui.QIcon('fi-rr-cross-small.png'))
         self.pushButton_2.setIcon(QtGui.QIcon('search.png'))
         self.pushButton_3.setIcon(QtGui.QIcon('cil-trash.png'))
         self.pushButton_2.clicked.connect(self.SearchMap)
         self.pushButton_3.clicked.connect(self.ClearSearch)
+        self.checkBox.stateChanged.connect(self.checkBoxChanged)
+
+    def checkBoxChanged(self):
+        global lat, lon, spn_, address, points
+        self.ShowMap(lat, lon, spn_, points, fulladdress=address)
 
     def SearchMap(self):
         global spn_, points
@@ -126,9 +135,32 @@ class MyWidget(QMainWindow):
             }
             response = requests.get(api_server, params=params)
             json = response.json()
-            toponym = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
-            points = [toponym.split()[0], toponym.split()[1]]
-            self.ShowMap(toponym.split()[1], toponym.split()[0], spn_, points)
+            if json["response"]["GeoObjectCollection"]["metaDataProperty"]["GeocoderResponseMetaData"]["found"] != "0":
+                toponym = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
+                points = [toponym.split()[0], toponym.split()[1]]
+                a = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["metaDataProperty"]["GeocoderMetaData"]["Address"]
+                a = a["formatted"], self.SearchFullAddress(a["formatted"])
+                self.ShowMap(toponym.split()[1], toponym.split()[0], spn_, points, fulladdress=a)
+
+
+    def SearchFullAddress(self, address):
+        api_server = "http://geocode-maps.yandex.ru/1.x/"
+        params = {
+            "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
+            "geocode": address,
+            "format": "json"
+        }
+        response = requests.get(api_server, params=params)
+        json = response.json()
+        if json["response"]["GeoObjectCollection"]["metaDataProperty"]["GeocoderResponseMetaData"]["found"] != "0":
+            a = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["metaDataProperty"][
+                "GeocoderMetaData"]["Address"]
+            if "postal_code" in a:
+                return ', ' + a["postal_code"]
+            else:
+                return ''
+
+
 
 
     def ClearSearch(self):
