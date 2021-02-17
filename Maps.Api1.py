@@ -20,10 +20,20 @@ class MyWidget(QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi('one.ui', self)
+        self.mode = 'map'
         self.setWindowFlag(QtCore.Qt.FramelessWindowHint)
+        self.pushButton.setIcon(QtGui.QIcon('fi-rr-cross-small.png'))
+        self.pushButton_3.setIcon(QtGui.QIcon('fi-rr-interrogation.png'))
         self.pushButton.clicked.connect(sys.exit)
         self.pushButton_2.clicked.connect(self.Right_Check)
         self.pushButton_3.clicked.connect(self.help)
+        self.comboBox.activated[str].connect(self.MapMode)
+
+
+    def MapMode(self, text):
+        a = {'Схема': 'map', 'Спутник': 'sat', 'Гибрид': 'sat,skl'}
+        self.mode = a[text]
+
 
     def help(self):
         help_dialog_inst = HelpDialog()
@@ -33,16 +43,24 @@ class MyWidget(QMainWindow):
 
     def Right_Check(self):
         a = 'Вы ввели некорректные:'
-        if self.lineEdit.text().count('.') > 1 or not self.lineEdit.text().replace('.', '').isdigit():
+        a1 = self.lineEdit.text()
+        a2 = self.lineEdit_2.text()
+        if a1[0] == '-':
+            a1 = a1[1:]
+        if a2[0] == '-':
+            a2 = a2[1:]
+        if a1.count('.') > 1 or not a1.replace('.', '').isdigit():
+            a += '\nШироту'
+            print(1)
+        else:
+            if float(a1) > 88:
+                a += '\nШироту'
+                print(2)
+        if a2.count('.') > 1 or not a2.replace('.', '').isdigit():
             a += '\nДолготу'
         else:
-            if float(self.lineEdit.text()) > 179 or float(self.lineEdit.text()) < -179:
+            if float(a2) > 88:
                 a += '\nДолготу'
-        if self.lineEdit_2.text().count('.') > 1 or not self.lineEdit_2.text().replace('.', '').isdigit():
-            a += '\nШироту'
-        else:
-            if float(self.lineEdit_2.text()) > 88 or float(self.lineEdit_2.text()) < -88:
-                a += '\nШироту'
         spn = self.lineEdit_3.text().split(', ')
         if ',' not in self.lineEdit_3.text():
             spn = [self.lineEdit_3.text(), self.lineEdit_3.text()]
@@ -66,21 +84,22 @@ class MyWidget(QMainWindow):
         uic.loadUi('map.ui', self)
         self.ShowMap(Longitude, Latitude, spn, pts)
 
-    def ShowMap(self, Longitude, Latitude, spn, pts=['']):
+    def ShowMap(self, Latitude, Longitude, spn, pts=['']):
         global lon, lat, spn_, points
         api_server = "http://static-maps.yandex.ru/1.x/"
-        lon = str(Latitude)
-        lat = str(Longitude)
+        lon = str(Longitude)
+        lat = str(Latitude)
         spn_ = spn
         points = pts
         params = {
             "ll": ",".join([lon, lat]),
             "spn": ",".join(spn_),
-            "l": "map",
+            "l": self.mode,
             "size": "640,360",
             "pt": ",".join(points)
         }
         response = requests.get(api_server, params=params)
+        print(response.status_code)
         self.map_file = "map.png"
         a = self.lineEdit.text()
         uic.loadUi('map.ui', self)
@@ -90,24 +109,26 @@ class MyWidget(QMainWindow):
         self.pixmap = QPixmap(self.map_file)
         self.label.setPixmap(self.pixmap)
         self.pushButton.clicked.connect(sys.exit)
-        self.pushButton_2.setIcon(QtGui.QIcon('lupa.png'))
+        self.pushButton.setIcon(QtGui.QIcon('fi-rr-cross-small.png'))
+        self.pushButton_2.setIcon(QtGui.QIcon('search.png'))
         self.pushButton_3.setIcon(QtGui.QIcon('cil-trash.png'))
         self.pushButton_2.clicked.connect(self.SearchMap)
         self.pushButton_3.clicked.connect(self.ClearSearch)
 
     def SearchMap(self):
         global spn_, points
-        api_server = "http://geocode-maps.yandex.ru/1.x/"
-        params = {
-            "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
-            "geocode": self.lineEdit.text(),
-            "format": "json"
-        }
-        response = requests.get(api_server, params=params)
-        json = response.json()
-        toponym = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
-        points = [toponym.split()[0], toponym.split()[1]]
-        self.ShowMap(toponym.split()[1], toponym.split()[0], spn_, points)
+        if self.lineEdit.text() != '':
+            api_server = "http://geocode-maps.yandex.ru/1.x/"
+            params = {
+                "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
+                "geocode": self.lineEdit.text(),
+                "format": "json"
+            }
+            response = requests.get(api_server, params=params)
+            json = response.json()
+            toponym = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
+            points = [toponym.split()[0], toponym.split()[1]]
+            self.ShowMap(toponym.split()[1], toponym.split()[0], spn_, points)
 
 
     def ClearSearch(self):
@@ -141,6 +162,18 @@ class MyWidget(QMainWindow):
             else:
                 spnn[1] = str(float(spn_[1]) / 2)
             self.ShowMap(lat, lon, spnn, points)
+        elif event.key() == Qt.Key_Up:
+            if float(lat) + 2 * float(spn_[0]) < 88:
+                self.ShowMap(str(float(lat) + 4 * float(spn_[0])), lon, spn_, points)
+        elif event.key() == Qt.Key_Down:
+            if float(lat) - 2 * float(spn_[0]) > 0:
+                self.ShowMap(str(float(lat) - 4 * float(spn_[0])), lon, spn_, points)
+        elif event.key() == Qt.Key_Right:
+            if float(lon) + 2 * float(spn_[1]) < 88:
+                self.ShowMap(lat, str(float(lon) + 4 * float(spn_[1])), spn_, points)
+        elif event.key() == Qt.Key_Left:
+            if float(lon) - 2 * float(spn_[1]) > 0:
+                self.ShowMap(lat, str(float(lon) - 4 * float(spn_[1])), spn_, points)
 
 
 if __name__ == '__main__':
