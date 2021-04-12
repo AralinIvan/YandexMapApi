@@ -1,5 +1,6 @@
 import sys
 import requests
+import math
 from help_dialog import Ui_Dialog as help_dialog_ui
 from PyQt5 import uic, QtCore, QtGui
 from PyQt5.QtCore import Qt
@@ -29,17 +30,40 @@ class MyWidget(QMainWindow):
         self.pushButton_3.clicked.connect(self.help)
         self.comboBox.activated[str].connect(self.MapMode)
 
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            print(event.pos())
+            pos = event.pos()
+            self.getCoordinates(pos.x(), pos.y())
+
+    def getCoordinates(self, x, y):
+        global spn_, lon, lat
+        spn = [float(spn_[0]), float(spn_[1])]
+        lon_ = float(lon)
+        lat_ = float(lat)
+        w = 640
+        h = 360
+        max_a = lon_ + (spn[0] / 2)
+        max_b = lat_ + (spn[1] / 2)
+        min_a = lon_ - (spn[0] / 2)
+        min_b = lat_ - (spn[1] / 2)
+        s_a = w / (max_a - min_a)
+        o_a = -w * min_a / (max_a - min_a)
+        s_b = -h / (max_b - min_b)
+        o_b = h * max_b / (max_b - min_b)
+        finded_lon = str(round((x - o_a) / s_a, 6))
+        finded_lat = str(round((y - o_b) / s_b, 6))
+        print(finded_lon, finded_lat)
+        self.ShowMap(lat, lon, spn_, [finded_lon, finded_lat, "pm2rdm"])
 
     def MapMode(self, text):
         a = {'Схема': 'map', 'Спутник': 'sat', 'Гибрид': 'sat,skl'}
         self.mode = a[text]
 
-
     def help(self):
         help_dialog_inst = HelpDialog()
         help_dialog_inst.show()
         help_dialog_inst.exec()
-
 
     def Right_Check(self):
         a = 'Вы ввели некорректные:'
@@ -62,21 +86,21 @@ class MyWidget(QMainWindow):
         spn = self.lineEdit_3.text().split(', ')
         if ',' not in self.lineEdit_3.text():
             spn = [self.lineEdit_3.text(), self.lineEdit_3.text()]
-        if spn[0].count('.') > 1 or not spn[0].replace('.', '').isdigit() or spn[1].count('.') > 1 or not spn[1].replace('.', '').isdigit():
+        if spn[0].count('.') > 1 or not spn[0].replace('.', '').isdigit() or spn[1].count('.') > 1 or not spn[
+            1].replace('.', '').isdigit():
             a += '\nМасштаб'
         else:
             if float(spn[0]) > 180 or float(spn[0]) < -180 or float(spn[1]) > 90 or float(spn[1]) < -90:
                 a += '\nМасштаб'
 
         if a[-1] == ',':
-           a = a[0:-1]
+            a = a[0:-1]
         if a == 'Вы ввели некорректные:':
             self.LoadMapUI(float(self.lineEdit.text()), float(self.lineEdit_2.text()), spn)
         else:
             error_dialog_inst = HelpDialog(a)
             error_dialog_inst.show()
             error_dialog_inst.exec()
-
 
     def LoadMapUI(self, Longitude, Latitude, spn, pts=['']):
         uic.loadUi('map.ui', self)
@@ -137,11 +161,11 @@ class MyWidget(QMainWindow):
             json = response.json()
             if json["response"]["GeoObjectCollection"]["metaDataProperty"]["GeocoderResponseMetaData"]["found"] != "0":
                 toponym = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
-                points = [toponym.split()[0], toponym.split()[1]]
-                a = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["metaDataProperty"]["GeocoderMetaData"]["Address"]
+                points = [toponym.split()[0], toponym.split()[1], "pm2rdm"]
+                a = json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["metaDataProperty"][
+                    "GeocoderMetaData"]["Address"]
                 a = a["formatted"], self.SearchFullAddress(a["formatted"])
                 self.ShowMap(toponym.split()[1], toponym.split()[0], spn_, points, fulladdress=a)
-
 
     def SearchFullAddress(self, address):
         api_server = "http://geocode-maps.yandex.ru/1.x/"
@@ -160,40 +184,34 @@ class MyWidget(QMainWindow):
             else:
                 return ''
 
-
-
-
     def ClearSearch(self):
         global lon, lat, spn_, points
         if self.lineEdit.text() != '':
             self.lineEdit.setText('')
         self.ShowMap(lat, lon, spn_)
 
-
-
     def keyPressEvent(self, event):
         global lon, lat, spn_, points
-        spnn = [1, 1]
         if event.key() == Qt.Key_PageDown:
             if float(spn_[0]) * 2 > 180:
-                spnn[0] = str(180)
+                spn_[0] = str(180)
             else:
-                spnn[0] = str(float(spn_[0]) * 2)
+                spn_[0] = str(float(spn_[0]) * 2)
             if float(spn_[1]) * 2 > 90:
-                spnn[1] = str(90)
+                spn_[1] = str(90)
             else:
-                spnn[1] = str(float(spn_[1]) * 2)
-            self.ShowMap(lat, lon, spnn, points)
+                spn_[1] = str(float(spn_[1]) * 2)
+            self.ShowMap(lat, lon, spn_, points)
         elif event.key() == Qt.Key_PageUp:
             if float(spn_[0]) / 2 < 0.001:
-                spnn[0] = str(0.0001)
+                spn_[0] = str(0.0001)
             else:
-                spnn[0] = str(float(spn_[0]) / 2)
+                spn_[0] = str(float(spn_[0]) / 2)
             if float(spn_[1]) / 2 < 0.0001:
-                spnn[1] = str(0.0001)
+                spn_[1] = str(0.0001)
             else:
-                spnn[1] = str(float(spn_[1]) / 2)
-            self.ShowMap(lat, lon, spnn, points)
+                spn_[1] = str(float(spn_[1]) / 2)
+            self.ShowMap(lat, lon, spn_, points)
         elif event.key() == Qt.Key_Up:
             if float(lat) + 2 * float(spn_[0]) < 88:
                 self.ShowMap(str(float(lat) + 4 * float(spn_[0])), lon, spn_, points)
@@ -208,7 +226,13 @@ class MyWidget(QMainWindow):
                 self.ShowMap(lat, str(float(lon) - 4 * float(spn_[1])), spn_, points)
 
 
+def my_excepthook(type, value, tback):
+    print(value)
+    sys.__excepthook__(type, value, tback)
+
+
 if __name__ == '__main__':
+    sys.excepthook = my_excepthook
     app = QApplication(sys.argv)
     ex = MyWidget()
     ex.show()

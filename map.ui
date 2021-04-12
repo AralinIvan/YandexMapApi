@@ -218,6 +218,12 @@ font: 87 10pt &quot;Arial Black&quot;;</string>
     <property name="text">
      <string/>
     </property>
+    <property name="scaledContents">
+     <bool>false</bool>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
    </widget>
    <widget class="QCheckBox" name="checkBox">
     <property name="geometry">
