@@ -1,6 +1,6 @@
 import sys
 import requests
-import math
+from calculate import *
 from help_dialog import Ui_Dialog as help_dialog_ui
 from PyQt5 import uic, QtCore, QtGui
 from PyQt5.QtCore import Qt
@@ -37,24 +37,17 @@ class MyWidget(QMainWindow):
             self.getCoordinates(pos.x(), pos.y())
 
     def getCoordinates(self, x, y):
-        global spn_, lon, lat
-        spn = [float(spn_[0]), float(spn_[1])]
+        global spn_, lon, lat, zoom
         lon_ = float(lon)
         lat_ = float(lat)
-        w = 640
-        h = 360
-        max_a = lon_ + (spn[0] / 2)
-        max_b = lat_ + (spn[1] / 2)
-        min_a = lon_ - (spn[0] / 2)
-        min_b = lat_ - (spn[1] / 2)
-        s_a = w / (max_a - min_a)
-        o_a = -w * min_a / (max_a - min_a)
-        s_b = -h / (max_b - min_b)
-        o_b = h * max_b / (max_b - min_b)
-        finded_lon = str(round((x - o_a) / s_a, 6))
-        finded_lat = str(round((y - o_b) / s_b, 6))
-        print(finded_lon, finded_lat)
-        self.ShowMap(lat, lon, spn_, [finded_lon, finded_lat, "pm2rdm"])
+        centerx, centery = 640 // 2, 360 // 2
+        deltax = centerx - x
+        deltay = centery - y
+        x2, y2 = ll2px(lat_, lon_, 17)
+        x2 += -deltax
+        y2 += -deltay
+        latt2, long2 = px2ll(x2, y2, 17)
+        self.ShowMap(lat, lon, spn_, [str(long2), str(latt2), "pm2rdm"])
 
     def MapMode(self, text):
         a = {'Схема': 'map', 'Спутник': 'sat', 'Гибрид': 'sat,skl'}
@@ -191,7 +184,7 @@ class MyWidget(QMainWindow):
         self.ShowMap(lat, lon, spn_)
 
     def keyPressEvent(self, event):
-        global lon, lat, spn_, points
+        global lon, lat, spn_, points, zoom
         if event.key() == Qt.Key_PageDown:
             if float(spn_[0]) * 2 > 180:
                 spn_[0] = str(180)
